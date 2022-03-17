@@ -9,7 +9,7 @@ canvas.height = innerHeight
 class Cannon {
 
     constructor() {
-        this.velocity = {
+        this.speed = {
             x: 0,
             y: 0
         }
@@ -43,7 +43,19 @@ class Cannon {
     update() {
         if (this.image) {
             this.draw()
-            this.position.x += this.velocity.x
+            this.position.x += this.speed.x
+        }
+    }
+
+    move() {
+        if (keys.ArrowLeft.pressed && cannon.position.x >= 0) {
+            cannon.speed.x = -7
+        }
+        else if (keys.ArrowRight.pressed && cannon.position.x + cannon.width <= canvas.width) {
+            cannon.speed.x = 7
+        }
+        else {
+            cannon.speed.x = 0
         }
     }
 
@@ -52,14 +64,20 @@ class Cannon {
 // PROJECTILES
 class Projectile {
 
-    constructor({ position, velocity }) {
-        this.position = position
-        this.velocity = velocity
+    constructor() {
+        this.position = {
+            x: cannon.position.x + cannon.width / 2,
+            y: cannon.position.y
+        }
+        this.speed = {
+            x: 0,
+            y: -10
+        }
         this.radius = 5
     }
 
     draw() {
-        ctx.beginPath
+        ctx.beginPath()
         ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2)
         ctx.fillStyle = 'black'
         ctx.fill()
@@ -68,17 +86,17 @@ class Projectile {
 
     update() {
         this.draw()
-        this.position.x += this.velocity.x
-        this.position.y += this.velocity.y
+        this.position.x += this.speed.x
+        this.position.y += this.speed.y
     }
+
 }
 
-// PIOUPIOU
-
+// TARGET
 class PiouPiou {
 
     constructor() {
-        this.velocity = {
+        this.speed = {
             x: 3,
             y: 0
         }
@@ -91,8 +109,8 @@ class PiouPiou {
             this.width = image.width * scale
             this.height = image.height * scale
             this.position = {
-                x: 50,
-                y: 50
+                x: 0,
+                y: Math.floor(Math.random() * canvas.height / 2)
             }
         }
     }
@@ -112,22 +130,26 @@ class PiouPiou {
     update() {
         if (this.image) {
             this.draw()
-            this.position.x += this.velocity.x
+            this.position.x += this.speed.x
         }
     }
 
     move() {
-        if (this.position.x + this.width > canvas.width || this.position.x - this.width < 0) {
-            this.velocity.x = - this.velocity.x
-        }
+        if (this.image)
+            if (this.position.x - this.width > canvas.width || this.position.x + this.width < 0) {
+                this.speed.x = - this.speed.x
+            }
     }
 
 }
 
 // GAME
+
+// VARIABLES
 const cannon = new Cannon()
 const projectiles = []
-const pioupiou = new PiouPiou()
+const pioupious = []
+pioupious.push(new PiouPiou())
 
 const keys = {
     ArrowLeft: {
@@ -144,47 +166,51 @@ const keys = {
     }
 }
 
+// ANIMATE
+
 function animate() {
 
     requestAnimationFrame(animate)
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+    // Cannon
     cannon.update()
+    cannon.move()
 
-    pioupiou.update()
-
-    // PiouPiou round trip
-    if (pioupiou.position.x - pioupiou.width > canvas.width || pioupiou.position.x + pioupiou.width < 0) {
-        pioupiou.velocity.x = - pioupiou.velocity.x
+    // Create projectile
+    if (keys.space.pressed) {
+        projectiles.push(new Projectile())
     }
 
-    // Clear projectiles
+    // Shoot projectile and clear
     projectiles.forEach((projectile, index) => {
-
         if (projectile.position.y + projectile.radius <= 0) {
-            setTimeout(() => {
-                projectiles.splice(index, 1)
-            }, 0)
+            projectiles.splice(index, 1)
         } else {
             projectile.update()
         }
     })
 
-    if (keys.ArrowLeft.pressed && cannon.position.x >= 0) {
-        cannon.velocity.x = -7
-    }
-    else if (keys.ArrowRight.pressed && cannon.position.x + cannon.width <= canvas.width) {
-        cannon.velocity.x = 7
-    }
-    else {
-        cannon.velocity.x = 0
-    }
+    // Target
+    pioupious.forEach((pioupiou, j) => {
+        pioupiou.update()
+        pioupiou.move()
+    })
+
+    // Collision
+    projectiles.forEach((projectile, i, pioupiou, j) => {
+        if (projectile.position.y - projectile.radius <= pioupiou.position.y + pioupiou.height) {
+            projectiles.splice(i, 1)
+            pioupious.splice(j, 1)
+        }
+
+    })
 }
 
 animate()
 
-
+// EventListener keys
 addEventListener('keydown', ({ key }) => {
     switch (key) {
         case 'ArrowLeft':
@@ -194,17 +220,6 @@ addEventListener('keydown', ({ key }) => {
             keys.ArrowRight.pressed = true
             break
         case ' ':
-            // Shoot projectiles
-            projectiles.push(new Projectile({
-                position: {
-                    x: cannon.position.x + cannon.width / 2,
-                    y: cannon.position.y
-                },
-                velocity: {
-                    x: 0,
-                    y: -10
-                }
-            }))
             keys.space.pressed = true
             break
     }
